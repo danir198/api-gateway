@@ -1,0 +1,37 @@
+version: '3.8'
+services:
+  inventory-service:
+    build: ../inventory-service
+    ports:
+      - "8001:8001"
+    depends_on:
+      - mongo
+    environment:
+      - MONGO_URI=mongodb://root:example@mongo:27017
+      - DATABASE_NAME=inventory
+      - SERVER_ADDRESS=:8001
+      - ENABLE_AUTH=true
+      - API_USERNAME=your_username,admin
+      - API_PASSWORD=your_password
+      - JWT_SECRET=your_jwt_secret
+      - JWT_EXPIRATION=3600
+  api-gateway:
+    build: .
+    ports:
+      - "8002:8002"
+    environment:
+      - JWT_SECRET=your_jwt_secret
+    depends_on:
+      - inventory-service
+  mongo:
+    image: mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    volumes:
+      - mongo-data:/data/db
+    command: mongod --bind_ip_all
+volumes:
+  mongo-data:
