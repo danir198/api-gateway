@@ -41,6 +41,7 @@ func (g *APIGateway) routes() {
 	g.Router.HandleFunc("/products/{id}", g.rateLimit(g.authenticate(g.routeRequest(g.InventoryServiceURL)))).Methods("DELETE")
 	g.Router.HandleFunc("/products", g.rateLimit(g.authenticate(g.routeRequest(g.InventoryServiceURL)))).Methods("GET")
 	g.Router.HandleFunc("/products/search", g.rateLimit(g.authenticate(g.routeRequest(g.InventoryServiceURL)))).Methods("GET")
+	g.Router.HandleFunc("/health", g.rateLimit(http.HandlerFunc(g.HealthCheckHandler)))
 }
 
 func (g *APIGateway) routeRequest(serviceURL string) http.HandlerFunc {
@@ -97,4 +98,10 @@ func (g *APIGateway) rateLimit(next http.Handler) http.HandlerFunc {
 		}
 		next.ServeHTTP(w, r)
 	}
+}
+
+// HealthCheckHandler responds with a simple health check message
+func (g *APIGateway) HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("API Gateway is healthy"))
 }

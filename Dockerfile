@@ -9,4 +9,7 @@ RUN go build -o api-gateway .
 
 EXPOSE 8002
 
+COPY ./tls/cert.pem /tls/cert.pem
+COPY ./tls/key.pem /tls/key.pem
+
 CMD ["./api-gateway"]

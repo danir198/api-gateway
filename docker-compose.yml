@@ -23,6 +23,9 @@ services:
       - JWT_SECRET=your_jwt_secret
     depends_on:
       - inventory-service
+    volumes:
+      - ./tls/cert.pem:/tls/cert.pem
+      - ./tls/key.pem:/tls/key.pem
   mongo:
     image: mongo
     ports:
