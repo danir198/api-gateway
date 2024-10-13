@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -18,14 +19,16 @@ import (
 type APIGateway struct {
 	Router              *mux.Router
 	InventoryServiceURL string
+	OrderServiceURL     string
 	RateLimiter         *limiter.Limiter
 }
 
-func NewAPIGateway(inventoryServiceURL string) *APIGateway {
+func NewAPIGateway(inventoryServiceURL, orderServiceURL string) *APIGateway {
 	rateLimiter := tollbooth.NewLimiter(1, &limiter.ExpirableOptions{DefaultExpirationTTL: time.Hour})
 	gateway := &APIGateway{
 		Router:              mux.NewRouter(),
 		InventoryServiceURL: inventoryServiceURL,
+		OrderServiceURL:     orderServiceURL, // Initialize Order Service URL
 		RateLimiter:         rateLimiter,
 	}
 	gateway.routes()
@@ -34,6 +37,7 @@ func NewAPIGateway(inventoryServiceURL string) *APIGateway {
 
 func (g *APIGateway) routes() {
 
+	// Inventory service routes
 	g.Router.HandleFunc("/products/{id}/availability", g.rateLimit(g.authenticate(g.routeRequest(g.InventoryServiceURL)))).Methods("GET")
 	g.Router.HandleFunc("/products/{id}/inventory", g.rateLimit(g.authenticate(g.routeRequest(g.InventoryServiceURL)))).Methods("PUT")
 	g.Router.HandleFunc("/products/{id}", g.rateLimit(g.authenticate(g.routeRequest(g.InventoryServiceURL)))).Methods("GET")
@@ -42,6 +46,13 @@ func (g *APIGateway) routes() {
 	g.Router.HandleFunc("/products", g.rateLimit(g.authenticate(g.routeRequest(g.InventoryServiceURL)))).Methods("GET")
 	g.Router.HandleFunc("/products/search", g.rateLimit(g.authenticate(g.routeRequest(g.InventoryServiceURL)))).Methods("GET")
 	g.Router.HandleFunc("/health", g.rateLimit(http.HandlerFunc(g.HealthCheckHandler)))
+
+	// Order service routes
+	g.Router.HandleFunc("/orders", g.rateLimit(g.authenticate(g.routeRequest(g.OrderServiceURL)))).Methods("POST")
+	g.Router.HandleFunc("/orders", g.rateLimit(g.authenticate(g.routeRequest(g.OrderServiceURL)))).Methods("GET")
+	g.Router.HandleFunc("/orders/{id}", g.rateLimit(g.authenticate(g.routeRequest(g.OrderServiceURL)))).Methods("GET")
+	g.Router.HandleFunc("/orders/{id}", g.rateLimit(g.authenticate(g.routeRequest(g.OrderServiceURL)))).Methods("PUT")
+	g.Router.HandleFunc("/orders/{id}/cancel", g.rateLimit(g.authenticate(g.routeRequest(g.OrderServiceURL)))).Methods("POST")
 }
 
 func (g *APIGateway) routeRequest(serviceURL string) http.HandlerFunc {
@@ -56,6 +67,7 @@ func (g *APIGateway) authenticate(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
+			log.Println("Unauthorized request")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -66,12 +78,14 @@ func (g *APIGateway) authenticate(next http.Handler) http.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			log.Println("Invalid token")
+			http.Error(w, "Invalid token", http.StatusUnauthorized)
 			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
+			log.Println("Invalid token claims")
 			http.Error(w, "Invalid token claims", http.StatusUnauthorized)
 			return
 		}
@@ -91,9 +105,8 @@ func (g *APIGateway) rateLimit(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		httpError := tollbooth.LimitByRequest(g.RateLimiter, w, r)
 		if httpError != nil {
-			w.Header().Add("Content-Type", "text/plain; charset=utf-8")
-			w.WriteHeader(httpError.StatusCode)
-			w.Write([]byte(httpError.Message))
+			log.Println("Rate limit exceeded")
+			http.Error(w, httpError.Message, httpError.StatusCode)
 			return
 		}
 		next.ServeHTTP(w, r)
