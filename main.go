@@ -6,30 +6,32 @@ import (
 	"os"
 )
 
+const (
+	port     = ":8002"
+	certFile = "./tls/cert.pem"
+	keyFile  = "./tls/key.pem"
+)
+
 func main() {
 
-	gateway := NewAPIGateway("http://inventory-service:8001")
+	gateway := NewAPIGateway("http://inventory-service:8001", "http://order-service:8003")
 	//log.Fatal(http.ListenAndServe(":8002", gateway.Router))
 
-	certFile := "./tls/cert.pem"
-	keyFile := "./tls/key.pem"
-
-	// Check if certificate and key files exist
+	// Check cert.pem, fallback to http if not found
 	if _, err := os.Stat(certFile); os.IsNotExist(err) {
-		log.Println("Certificate file not found, running on HTTP")
-		log.Fatal(http.ListenAndServe(":8002", gateway.Router))
+		log.Printf("Certificate file '%s' not found, running on HTTP", certFile)
+		log.Fatal(http.ListenAndServe(port, gateway.Router))
 		return
 	}
 
+	// Check key.pem, fallback to http if not found
 	if _, err := os.Stat(keyFile); os.IsNotExist(err) {
-		log.Println("Key file not found, running on HTTP")
-		log.Fatal(http.ListenAndServe(":8002", gateway.Router))
+		log.Printf("Key file '%s' not found, running on HTTP", keyFile)
+		log.Fatal(http.ListenAndServe(port, gateway.Router))
 		return
 	}
 
 	log.Println("Certificate and key files found, running on HTTPS")
-	log.Fatal(http.ListenAndServeTLS(":8002", certFile, keyFile, gateway.Router))
-
-	log.Fatal(http.ListenAndServeTLS(":8002", certFile, keyFile, gateway.Router))
+	log.Fatal(http.ListenAndServeTLS(port, certFile, keyFile, gateway.Router))
 
 }
