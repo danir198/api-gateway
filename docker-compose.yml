@@ -5,9 +5,9 @@ services:
     ports:
       - "8001:8001"
     depends_on:
-      - mongo
+      - mongo_inventory
     environment:
-      - MONGO_URI=mongodb://root:example@mongo:27017
+      - MONGO_URI=mongodb://root:example@mongodb_inventory_service:27017
       - DATABASE_NAME=inventory
       - SERVER_ADDRESS=:8001
       - ENABLE_AUTH=true
@@ -15,6 +15,25 @@ services:
       - API_PASSWORD=your_password
       - JWT_SECRET=your_jwt_secret
       - JWT_EXPIRATION=3600
+    networks:
+      - backend
+
+  order-service:
+    build: ../order-service
+    ports:
+      - "8003:8003"
+    depends_on:
+      - mongo_order
+    environment:
+      - MONGO_URI=mongodb://root:example@mongodb_order_service:27017
+      - DATABASE_NAME=orders
+      - SERVER_ADDRESS=:8003
+      - ENABLE_AUTH=true
+      - JWT_SECRET=your_jwt_secret
+      - JWT_EXPIRATION=3600
+    networks:
+      - backend
+
   api-gateway:
     build: .
     ports:
@@ -26,15 +45,41 @@ services:
     volumes:
       - ./tls/cert.pem:/tls/cert.pem
       - ./tls/key.pem:/tls/key.pem
-  mongo:
+    networks:
+      - backend
+
+  mongo_inventory:
     image: mongo
+    container_name: mongodb_inventory_service
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=example
     volumes:
-      - mongo-data:/data/db
+      - mongo-inventory-data:/data/db
     command: mongod --bind_ip_all
+    networks:
+      - backend
+
+
+  mongo_order:
+    image: mongo
+    container_name: mongodb_order_service
+    ports:
+      - "27018:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=example
+    volumes:
+      -  mongo-order-data:/data/db
+    command: mongod --bind_ip_all
+    networks:
+      - backend
+
 volumes:
-  mongo-data:
+    mongo-inventory-data:
+    mongo-order-data:
+
+networks:
+  backend:
