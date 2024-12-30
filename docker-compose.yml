@@ -10,7 +10,7 @@ services:
       - MONGO_URI=mongodb://root:example@mongodb_inventory_service:27017
       - DATABASE_NAME=inventory
       - SERVER_ADDRESS=:8001
-      - ENABLE_AUTH=true
+      - ENABLE_AUTH=false
       - API_USERNAME=your_username,admin
       - API_PASSWORD=your_password
       - JWT_SECRET=your_jwt_secret
@@ -28,7 +28,7 @@ services:
       - MONGO_URI=mongodb://root:example@mongodb_order_service:27017
       - DATABASE_NAME=orders
       - SERVER_ADDRESS=:8003
-      - ENABLE_AUTH=true
+      - ENABLE_AUTH=false
       - JWT_SECRET=your_jwt_secret
       - JWT_EXPIRATION=3600
     networks:
@@ -39,9 +39,11 @@ services:
     ports:
       - "8002:8002"
     environment:
+      - ENABLE_AUTH=false
       - JWT_SECRET=your_jwt_secret
     depends_on:
       - inventory-service
+      - order-service
     volumes:
       - ./tls/cert.pem:/tls/cert.pem
       - ./tls/key.pem:/tls/key.pem

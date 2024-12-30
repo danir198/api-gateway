@@ -65,6 +65,12 @@ func (g *APIGateway) routeRequest(serviceURL string) http.HandlerFunc {
 
 func (g *APIGateway) authenticate(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
+		if os.Getenv("ENABLE_AUTH") != "true" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			log.Println("Unauthorized request")
